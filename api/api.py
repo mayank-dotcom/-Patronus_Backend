@@ -62,8 +62,11 @@ def upload_pdf(request, file: UploadedFile = File(...)):
             }
         )
 
-        # Process PDF
-        print(f"DEBUG Upload: Starting PDF processing...")
+        # Process PDF with extended timeout
+        print(f"DEBUG Upload: Starting PDF processing (this may take a few minutes)...")
+        import time
+        start_time = time.time()
+        
         result = process_pdf(
             pdf_path=file_path,
             mongodb_uri=os.getenv("MONGODB_URI"),
@@ -71,8 +74,17 @@ def upload_pdf(request, file: UploadedFile = File(...)):
             collection_name=os.getenv("COLLECTION_NAME"),
             index_name=os.getenv("VECTOR_INDEX_NAME")
         )
-        print(f"DEBUG Upload: Processing complete - {result}")
+        
+        elapsed = time.time() - start_time
+        print(f"DEBUG Upload: Processing complete in {elapsed:.2f}s - {result}")
         return {"message": "Success", "details": result}
+    except MemoryError:
+        error_msg = "Server ran out of memory while processing PDF. Try splitting into smaller files."
+        print(f"DEBUG Upload Memory Error: {error_msg}")
+        return {
+            "message": "Error",
+            "details": error_msg
+        }
     except Exception as e:
         error_msg = str(e)
         print(f"DEBUG Upload Error: {error_msg}")
