@@ -28,6 +28,20 @@ def upload_pdf(request, file: UploadedFile = File(...)):
     try:
         print(f"DEBUG Upload: Received file {file.name}, size: {file.size} bytes")
         
+        # Validate file type
+        if not file.name.lower().endswith('.pdf'):
+            return {
+                "message": "Error",
+                "details": "Only PDF files are allowed"
+            }
+        
+        # Validate file size (max 50MB)
+        if file.size > 50 * 1024 * 1024:
+            return {
+                "message": "Error",
+                "details": "File size exceeds 50MB limit"
+            }
+        
         # Save file to media
         if not os.path.exists(settings.MEDIA_ROOT):
             os.makedirs(settings.MEDIA_ROOT)
@@ -62,6 +76,8 @@ def upload_pdf(request, file: UploadedFile = File(...)):
     except Exception as e:
         error_msg = str(e)
         print(f"DEBUG Upload Error: {error_msg}")
+        import traceback
+        traceback.print_exc()
         return {
             "message": "Error",
             "details": f"Failed to process PDF: {error_msg}"
@@ -79,7 +95,7 @@ def list_pdfs(request):
             "file_name": p.file_name,
             "file_size": p.file_size,
             "uploaded_at": p.uploaded_at.isoformat(),
-            "url": f"{settings.MEDIA_URL}{p.file_name}",
+            "url": f"{os.getenv('RENDER_EXTERNAL_HOSTNAME', 'http://127.0.0.1:8000')}/media/{p.file_name}",
         }
         for p in pdfs
     ]
