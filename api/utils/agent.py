@@ -78,7 +78,7 @@ def get_agent_executor(mongodb_uri, db_name, collection_name, index_name):
     
     # Get ReAct Prompt from Hub (standard for GPT-4)
     # instructions copied here to ensure isolation
-    template = """You are a helpful AI assistant with access to specialized tools. You MUST use the tools provided to answer questions.
+    template = """You are a helpful AI assistant. Use tools when necessary for factual data about the document.
 
 You have access to the following tools:
 
@@ -96,7 +96,7 @@ Thought: I now know the final answer
 Final Answer: the final answer to the original input question
 
 CRITICAL RULES:
-1. You MUST start with Thought, then take an Action - NEVER skip directly to Final Answer without using tools first
+1. For factual questions about the document, you MUST start with Thought, then take an Action. For greetings or general conversation, you MUST start with Thought then provide a Final Answer directly.
 2. Every Action MUST be followed by Action Input - NEVER write "None" or skip the input
 3. Every fact or number MUST cite page numbers as *(Page X)*
 4. Comparison queries require a Markdown table with clear headers
