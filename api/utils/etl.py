@@ -1,6 +1,6 @@
 import pdfplumber
 import os
-from langchain.schema import Document
+from langchain_core.documents import Document
 from langchain_community.vectorstores import MongoDBAtlasVectorSearch
 from langchain_openai import OpenAIEmbeddings
 from pymongo import MongoClient

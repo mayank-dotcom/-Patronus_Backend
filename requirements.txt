@@ -2,7 +2,9 @@ django
 django-ninja
 django-cors-headers
 langchain
+langchain-core
 langchain-openai
+langchain-community
 langchain-mongodb
 pymongo
 pdfplumber

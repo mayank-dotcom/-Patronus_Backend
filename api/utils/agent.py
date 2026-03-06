@@ -1,7 +1,6 @@
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.agents import AgentExecutor, create_react_agent
-from langchain.tools import Tool
-from langchain import hub
+from langchain_core.tools import Tool
 from langchain_community.vectorstores import MongoDBAtlasVectorSearch
 from pymongo import MongoClient
 import os
@@ -109,7 +108,7 @@ Chat History:
 Question: {input}
 Thought: {agent_scratchpad}"""
 
-    from langchain.prompts import PromptTemplate
+    from langchain_core.prompts import PromptTemplate
     prompt = PromptTemplate.from_template(template)
     
     # Create the ReAct Agent
