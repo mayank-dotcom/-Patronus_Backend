@@ -122,7 +122,6 @@ Thought: {agent_scratchpad}"""
         handle_parsing_errors=True,
         max_iterations=20,
         max_execution_time=300,          # 5 minutes — allows complex multi-step queries
-        early_stopping_method="generate", # synthesise answer from gathered context instead of erroring
         return_intermediate_steps=True
     )
     
