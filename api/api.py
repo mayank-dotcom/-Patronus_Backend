@@ -25,26 +25,31 @@ class ChatRequest(Schema):
 
 @api.post("/upload")
 def upload_pdf(request, file: UploadedFile = File(...)):
-    # Save file to media
-    if not os.path.exists(settings.MEDIA_ROOT):
-        os.makedirs(settings.MEDIA_ROOT)
-
-    file_path = os.path.join(settings.MEDIA_ROOT, file.name)
-    with open(file_path, 'wb+') as destination:
-        for chunk in file.chunks():
-            destination.write(chunk)
-
-    # Track in DB (upsert by filename)
-    UploadedPDF.objects.update_or_create(
-        file_name=file.name,
-        defaults={
-            'name': file.name,
-            'file_size': file.size,
-        }
-    )
-
-    # Process PDF
     try:
+        print(f"DEBUG Upload: Received file {file.name}, size: {file.size} bytes")
+        
+        # Save file to media
+        if not os.path.exists(settings.MEDIA_ROOT):
+            os.makedirs(settings.MEDIA_ROOT)
+
+        file_path = os.path.join(settings.MEDIA_ROOT, file.name)
+        print(f"DEBUG Upload: Saving to {file_path}")
+        
+        with open(file_path, 'wb+') as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
+
+        # Track in DB (upsert by filename)
+        UploadedPDF.objects.update_or_create(
+            file_name=file.name,
+            defaults={
+                'name': file.name,
+                'file_size': file.size,
+            }
+        )
+
+        # Process PDF
+        print(f"DEBUG Upload: Starting PDF processing...")
         result = process_pdf(
             pdf_path=file_path,
             mongodb_uri=os.getenv("MONGODB_URI"),
@@ -52,9 +57,15 @@ def upload_pdf(request, file: UploadedFile = File(...)):
             collection_name=os.getenv("COLLECTION_NAME"),
             index_name=os.getenv("VECTOR_INDEX_NAME")
         )
+        print(f"DEBUG Upload: Processing complete - {result}")
         return {"message": "Success", "details": result}
     except Exception as e:
-        return {"message": "Error", "details": str(e)}
+        error_msg = str(e)
+        print(f"DEBUG Upload Error: {error_msg}")
+        return {
+            "message": "Error",
+            "details": f"Failed to process PDF: {error_msg}"
+        }
 
 
 @api.get("/pdfs")
@@ -88,11 +99,6 @@ def chat_agent(request, payload: ChatRequest):
         # 1. Store Human Question
         ChatMessageStored.objects.create(role="human", content=payload.query)
 
-        # 2. Get last 5 PREVIOUS exchanges (excluding current query which was just added)
-        # Actually, let's just get the last 5 messages total, they will act as the context
-        history_objs = ChatMessageStored.objects.all().order_by('-timestamp')[:6] # 5 previous + 1 current
-        # Actually, best to pass previous 5. The current one is the 'input'.
-        
         # Get previous messages (excluding the one we just saved)
         past_messages = ChatMessageStored.objects.all().order_by('-timestamp')[1:6]
         # Reverse them to get chronological order
@@ -104,10 +110,12 @@ def chat_agent(request, payload: ChatRequest):
             label = "Human" if msg.role == "human" else "AI"
             formatted_history += f"{label}: {msg.content}\n"
 
-        # Run agent
+        # Run agent with timeout protection
         response = executor.invoke({
             "input": payload.query,
             "chat_history": formatted_history.strip()
+        }, {
+            "max_execution_time": 180  # 3 minutes max
         })
 
         # 3. Store AI Answer
@@ -125,8 +133,14 @@ def chat_agent(request, payload: ChatRequest):
             "thought_process": thought_trace
         }
     except Exception as e:
-        print(f"DEBUG Chat Error: {str(e)}")
-        return {"error": str(e)}
+        error_msg = str(e)
+        print(f"DEBUG Chat Error: {error_msg}")
+        # Return user-friendly error message
+        return {
+            "error": f"Agent processing failed: {error_msg}",
+            "answer": "I encountered an error processing your request. Please try rephrasing your question or check if the knowledge base has relevant documents.",
+            "thought_process": f"Error details: {error_msg}"
+        }
 
 
 @api.delete("/chat/clear")

@@ -78,32 +78,41 @@ def get_agent_executor(mongodb_uri, db_name, collection_name, index_name):
     
     # Get ReAct Prompt from Hub (standard for GPT-4)
     # instructions copied here to ensure isolation
-    template = """Answer the following questions as best you can. You have access to the following tools:
+    template = """You are a helpful AI assistant with access to specialized tools. You MUST use the tools provided to answer questions.
+
+You have access to the following tools:
 
 {tools}
 
-Use the following format:
+Use the following format EXACTLY:
 
 Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
+Thought: you should always think about what to do - what tool will help you answer this?
+Action: the action to take, MUST be one of [{tool_names}]
+Action Input: the input to the action (follow the tool's description carefully)
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can repeat N times)
 Thought: I now know the final answer
 Final Answer: the final answer to the original input question
 
-STRICT RULES you must always follow in your Final Answer:
-1. **Page Numbers are MANDATORY** — Every factual claim MUST include the page number where it was found, formatted as *(Page X)*. Never omit page numbers.
-2. **Comparison queries require a Markdown table** — Whenever the question involves comparing, contrasting, or listing multiple data points across categories (e.g., regions vs national average, year-over-year, firm types), you MUST present the results in a properly formatted Markdown table with clear headers.
-3. **Use Markdown formatting** — Structure your Final Answer using Markdown: use **bold** for key figures, `##` headings for sections when needed, bullet points for lists, and tables for comparisons.
-4. **For CAGR questions** — Find the 2022 baseline and 2030 target values first using KnowledgeBase, then use the CAGRCalculator tool.
-5. **Use Chat History** — Use the prior conversation context to avoid repeating yourself and to resolve follow-up references.
+CRITICAL RULES:
+1. You MUST start with Thought, then take an Action - NEVER skip directly to Final Answer without using tools first
+2. Every Action MUST be followed by Action Input - NEVER write "None" or skip the input
+3. Every fact or number MUST cite page numbers as *(Page X)*
+4. Comparison queries require a Markdown table with clear headers
+5. Use bold (**text**) for key figures and important points
+6. For CAGR calculations: FIRST find baseline (2022) and target (2030) values using KnowledgeBase, THEN use CAGRCalculator
 
-Begin!
+STRICT OUTPUT FORMAT FOR FINAL ANSWER:
+- **Page Numbers are MANDATORY** — Every factual claim MUST include the page number where it was found, formatted as *(Page X)*
+- **Comparison queries require a Markdown table** — Use markdown tables whenever comparing multiple data points
+- **Use Markdown formatting** — Structure with ## headings, bullet points, and proper formatting
+- **For CAGR questions** — Show the calculation steps and final percentage
 
 Chat History:
 {chat_history}
+
+Begin!
 
 Question: {input}
 Thought: {agent_scratchpad}"""
@@ -114,14 +123,14 @@ Thought: {agent_scratchpad}"""
     # Create the ReAct Agent
     agent = create_react_agent(llm, tools, prompt)
     
-    # Create Agent Executor
+    # Create Agent Executor with stricter parsing
     executor = AgentExecutor(
         agent=agent,
         tools=tools,
         verbose=True,
-        handle_parsing_errors=True,
-        max_iterations=20,
-        max_execution_time=300,          # 5 minutes — allows complex multi-step queries
+        handle_parsing_errors="Force LLM to follow correct format",  # Auto-correct format errors
+        max_iterations=15,  # Reduced to prevent infinite loops
+        max_execution_time=180,  # 3 minutes timeout
         return_intermediate_steps=True
     )
     
