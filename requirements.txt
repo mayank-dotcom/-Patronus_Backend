@@ -1,0 +1,17 @@
+django
+django-ninja
+django-cors-headers
+langchain
+langchain-openai
+langchain-mongodb
+pymongo
+pdfplumber
+pypdf
+python-dotenv
+pandas
+unstructured
+openai
+whitenoise
+gunicorn
+dj-database-url
+psycopg2-binary
